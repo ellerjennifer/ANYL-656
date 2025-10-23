@@ -13,7 +13,7 @@ df = pd.read_csv(DATA_PATH)
 
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import OneHotEncoder, StandardScaler, FunctionTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix
 from sklearn.impute import SimpleImputer
@@ -40,7 +40,13 @@ y = df['has_disease'].astype(int)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42, stratify=y)
 
 from sklearn.neural_network import MLPClassifier
-pipe = Pipeline([("preprocess", pre_linear), ("clf", MLPClassifier(max_iter=600, random_state=42, early_stopping=True))])
+# Ensure dense input for MLP by converting any sparse matrix to dense
+to_dense = FunctionTransformer(lambda X: X.toarray() if hasattr(X, "toarray") else X, validate=False)
+pipe = Pipeline([
+    ("preprocess", pre_linear),
+    ("to_dense", to_dense),
+    ("clf", MLPClassifier(max_iter=600, random_state=42, early_stopping=True)),
+])
 from sklearn.model_selection import GridSearchCV
 param_grid = {"clf__hidden_layer_sizes":[(64,), (32,16)], "clf__alpha":[1e-4,1e-3], "clf__learning_rate_init":[0.001]}
 gs = GridSearchCV(pipe, param_grid, scoring="roc_auc", cv=3, n_jobs=-1)
